@@ -22,6 +22,62 @@ class OptionTest {
             assert(option.isSome())
             assertFalse(option.isNone())
         }
+
+        @Test
+        fun testGetOrThrow() {
+            val value = 1
+            val some: Option<Int> = some(value)
+
+            assertEquals(value, some.getOrThrow())
+        }
+
+        @Test
+        fun testGetOrThrowCustomException() {
+            val value = 1
+            val some: Option<Int> = some(value)
+
+            assertEquals(value, some.getOrThrow())
+        }
+
+        @Test
+        fun testGetOrNull() {
+            val some: Option<Int> = some(1)
+
+            assertNotNull(some.getOrNull())
+        }
+
+        @Test
+        fun testMap() {
+            val value = 1
+            val option: Option<Int> = some(value)
+            val mapped: Option<Int> = option.map { it + 1 }
+
+            assertEquals(some(value + 1), mapped)
+        }
+
+
+        @Test
+        fun testNestedMap() {
+            val value = 1
+            val option: Option<Int> = some(value)
+            val mapped: Option<Int> = option
+                .map { it + 1 }
+                .map { it + 1 }
+                .map { it * 10 }
+
+            assertEquals(some(30), mapped)
+        }
+
+        @Test
+        fun testFlatMap() {
+            val value = 1
+            val option: Option<Int> = some(value)
+            val mapped: Option<Double> = option.flatMap {
+                some(it.toDouble())
+            }
+
+            assertEquals(some(1.0), mapped)
+        }
     }
 
     @Nested
@@ -33,26 +89,19 @@ class OptionTest {
             assert(option.isNone())
             assertFalse(option.isSome())
         }
-    }
 
-    @Nested
-    inner class GetOr {
         @Test
         fun testGetOrThrow() {
             val none: Option<Int> = none()
             val ex = assertThrows<NoSuchElementException> { none.getOrThrow() }
 
             assertEquals("Option is None", ex.message)
-            val value = 1
-            val some: Option<Int> = some(value)
-
-            assertEquals(value, some.getOrThrow())
         }
 
         @Test
         fun testGetOrThrowCustomException() {
             val none: Option<Int> = none()
-            val errorMessage = "Ops, something went wrong"
+            val errorMessage = "Something went wrong"
             val ex = assertThrows<RuntimeException> {
                 none.getOrThrow {
                     RuntimeException(errorMessage)
@@ -60,11 +109,6 @@ class OptionTest {
             }
 
             assertEquals(errorMessage, ex.message)
-
-            val value = 1
-            val some : Option<Int> = some(value)
-
-            assertEquals(value, some.getOrThrow())
         }
 
         @Test
@@ -78,37 +122,24 @@ class OptionTest {
         @Test
         fun testGetOrNull() {
             val none: Option<Int> = none()
+
             assertNull(none.getOrNull())
-
-            val some: Option<Int> = some(1)
-            assertNotNull(some.getOrNull())
         }
-    }
 
-    @Nested
-    inner class Map {
         @Test
         fun testMap() {
-            val value = 1
-            val option: Option<Int> = some(value)
-            val mapped: Option<Int> = option.map { it + 1 }
-
-            assertEquals(some(value + 1), mapped)
-
             val none: Option<Int> = none()
+
             assertEquals(none(), none.map { it + 1 })
         }
 
         @Test
-        fun testNestedMap() {
-            val value = 1
-            val option: Option<Int> = some(value)
-            val mapped: Option<Int> = option
-                .map { it + 1 }
-                .map { it + 1 }
-                .map { it * 10 }
+        fun testFlatMap() {
+            val none: Option<Int> = none()
 
-            assertEquals(some(30), mapped)
+            val mapped = none.flatMap { some(it.toDouble()) }
+
+            assertEquals(none(), mapped)
         }
     }
 }

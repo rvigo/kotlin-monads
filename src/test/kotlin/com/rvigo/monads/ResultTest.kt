@@ -5,102 +5,185 @@ import com.rvigo.monads.Option.Companion.some
 import com.rvigo.monads.Result.Companion.err
 import com.rvigo.monads.Result.Companion.ok
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 
 class ResultTest {
-    @Test
-    fun testMap() {
-        val value = 1
-        val ok: Result<Int, RuntimeException> = ok(value)
-        val mapped = ok.map {
-            it + 1
-        }
-        val expected: Result<Int, RuntimeException> = Result.Ok(2)
+    @Nested
+    inner class Ok {
+        @Test
+        fun testIsOk() {
+            val value = 1
 
-        assertEquals(expected, mapped)
+            val ok: Result<Int, RuntimeException> = ok(value)
 
-        val errorMessage = "Something went wrong"
-        val exception = RuntimeException(errorMessage)
-        val err: Result<Int, RuntimeException>  = err(exception)
-        val mappedErr= err.map {
-            it + 1
+            assert(ok.isOk())
+            assertFalse(ok.isErr())
         }
 
-        assertEquals(Result.Err(exception), mappedErr)
-    }
+        @Test
+        fun testIfOk() {
+            var j = 0
+            val value = 1
+            val ok: Result<Int, RuntimeException> = ok(value)
 
-    @Test
-    fun testNestedMap() {
-        val ok: Result<Int, RuntimeException> = ok(1)
-        val res = ok
-            .map { it + 1 }
-            .map { it + 1 }
-            .map { it * 10 }
+            val res = ok.ifOk {
+                j = it + 1
+            }.ifErr {
+                // should not be called
+                throw it
+            }
 
-        assertEquals(ok(30), res)
-    }
-
-    @Test
-    fun testIfOk() {
-        var j = 0
-        val value = 1
-        val ok: Result<Int, RuntimeException> = ok(value)
-
-        val res = ok.ifOk {
-           j = it + 1
-        }.ifErr {
-            // should not be called
-            throw it
+            assertEquals(2, j)
+            assertEquals(ok(value), res)
         }
 
-        assertEquals(2, j)
-        assertEquals(ok(value), res)
-    }
+        @Test
+        fun testMap() {
+            val value = 1
+            val ok: Result<Int, RuntimeException> = ok(value)
 
-    @Test
-    fun testIfErr() {val errorMessage = "Something went wrong"
-        val exception = RuntimeException(errorMessage)
-        val err: Result<Int, RuntimeException> = err(exception)
+            val mapped = ok.map {
+                it + 1
+            }
 
-        val res = err.ifErr {
-            assertEquals(it.message, errorMessage)
-        }.ifOk {
-            // should not be called
-            it + 1
+            val expected: Result<Int, RuntimeException> = Result.Ok(2)
+
+            assertEquals(expected, mapped)
         }
 
-        assertEquals(err(exception), res)
+        @Test
+        fun testFlatMap() {
+            val value = 1
+            val ok: Result<Int, RuntimeException> = ok(value)
+
+            val mapped: Result<Double, RuntimeException> = ok.flatMap {
+                ok(it.toDouble())
+            }
+
+            assertEquals(ok(1.0), mapped)
+        }
+
+        @Test
+        fun testNestedMap() {
+            val ok: Result<Int, RuntimeException> = ok(1)
+
+            val res = ok
+                // value = 2
+                .map { it + 1 }
+                // value = 3
+                .map { it + 1 }
+                // value = 30
+                .map { it * 10 }
+
+            assertEquals(ok(30), res)
+        }
+
+        @Test
+        fun testGetOrThrow() {
+            val value = 1
+            val ok = ok(value)
+
+            val res = ok.getOrThrow()
+
+            assertEquals(value, res)
+        }
+
+        @Test
+        fun testToOption() {
+            val value = 1
+            val ok: Result<Int, RuntimeException> = ok(value)
+
+            val some: Option<Int> = ok.toOption()
+
+            assertEquals(some(value), some)
+        }
     }
 
-    @Test
-    fun testGetOrThrow() {
-        val value = 1
-        val ok = ok(value)
-        val res= ok.getOrThrow()
+    @Nested
+    inner class Err {
+        private val defaultErrorMessage = "Something went wrong"
 
-        assertEquals(value, res)
+        @Test
+        fun testIsErr() {
+            val err: Result<Int, RuntimeException> = err(RuntimeException())
 
-        val exceptionMessage = "Something went wrong"
-        val err = err(RuntimeException(exceptionMessage))
+            assert(err.isErr())
+            assertFalse(err.isOk())
+        }
 
-        val exception= assertThrows<RuntimeException> { err.getOrThrow()  }
-        assertEquals(exceptionMessage, exception.message)
-    }
+        @Test
+        fun testMap() {
+            val exception = RuntimeException(defaultErrorMessage)
+            val err: Result<Int, RuntimeException> = err(exception)
 
-    @Test
-    fun testToOption() {
-        val value = 1
-        val ok: Result<Int, RuntimeException> = ok(value)
+            val mappedErr = err.map {
+                it + 1
+            }
 
-        val some: Option<Int> = ok.toOption()
+            assertEquals(Result.Err(exception), mappedErr)
+        }
 
-        assertEquals(some(value), some)
+        @Test
+        fun testFlatMap() {
+            val exception = RuntimeException(defaultErrorMessage)
+            val err: Result<Int, RuntimeException> = err(exception)
 
-        val err: Result<Int, RuntimeException> = err(RuntimeException("Something went wrong"))
-        val none: Option<Int> = err.toOption()
+            val mapped: Result<Double, RuntimeException> = err.flatMap {
+                ok(it.toDouble())
+            }
 
-        assertEquals(none(),none )
+            assertEquals(err(exception), mapped)
+        }
+
+        @Test
+        fun testMapErr() {
+            data class CustomError(override val message: String?) : RuntimeException(message)
+
+            val runtimeException = RuntimeException(defaultErrorMessage)
+            val expectedException = CustomError(defaultErrorMessage)
+            val err: Result<Int, RuntimeException> = err(runtimeException)
+
+            val res = err.mapErr { CustomError(it.message) }
+
+            val exception = assertThrows<CustomError> { res.getOrThrow() }
+            assertEquals(expectedException, exception)
+            assertEquals(exception.message, defaultErrorMessage)
+        }
+
+        @Test
+        fun testIfErr() {
+            val exception = RuntimeException(defaultErrorMessage)
+            val err: Result<Int, RuntimeException> = err(exception)
+
+            val res = err.ifErr {
+                assertEquals(it.message, defaultErrorMessage)
+            }.ifOk {
+                // should not be called
+                it + 1
+            }
+
+            assertEquals(err(exception), res)
+        }
+
+        @Test
+        fun testGetOrThrow() {
+            val err = err(RuntimeException(defaultErrorMessage))
+
+            val exception = assertThrows<RuntimeException> { err.getOrThrow() }
+            assertEquals(defaultErrorMessage, exception.message)
+        }
+
+        @Test
+        fun testToOption() {
+            val err: Result<Int, RuntimeException> = err(RuntimeException(defaultErrorMessage))
+
+            val none: Option<Int> = err.toOption()
+
+            assertEquals(none(), none)
+        }
     }
 }

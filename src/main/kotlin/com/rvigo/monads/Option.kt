@@ -34,6 +34,11 @@ inline fun <T, R> Option<T>.map(f: (T) -> R) = when (this) {
     is None -> none()
 }
 
+inline fun <T,  U> Option<T>.flatMap(f: (T)-> Option<U>) = when (this) {
+    is Some -> f(value)
+    is None -> none()
+}
+
 fun <T> Option<T>.getOrThrow() = when (this) {
     is Some -> value
     is None -> throw NoSuchElementException("Option is None")
