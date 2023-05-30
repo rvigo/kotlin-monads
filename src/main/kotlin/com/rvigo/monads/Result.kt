@@ -17,7 +17,7 @@ sealed class Result<out T, out E : Throwable> {
     }
 
     data class Ok<T>(val value: T) : Result<T, Nothing>()
-    data class Err<E : Throwable>(val throwable: E) : Result<Nothing, E>()
+    data class Err<E : Throwable>(val error: E) : Result<Nothing, E>()
 }
 
 fun <T, E : Throwable> Result<T, E>.isOk() = when (this) {
@@ -42,7 +42,7 @@ inline fun <T, E : Throwable, U> Result<T, E>.flatMap(f: (T) -> Result<U, E>) = 
 
 inline fun <T, E : Throwable, F : Throwable> Result<T, E>.mapErr(f: (E) -> F) = when (this) {
     is Ok -> this
-    is Err -> err(f(throwable))
+    is Err -> err(f(error))
 }
 
 inline fun <T, E : Throwable, R> Result<T, E>.ifOk(f: (T) -> R) = when (this) {
@@ -56,7 +56,7 @@ inline fun <T, E : Throwable, R> Result<T, E>.ifOk(f: (T) -> R) = when (this) {
 
 inline fun <T, E : Throwable, R> Result<T, E>.ifErr(f: (E) -> R) = when (this) {
     is Err -> {
-        f(throwable)
+        f(error)
         this
     }
 
@@ -65,7 +65,7 @@ inline fun <T, E : Throwable, R> Result<T, E>.ifErr(f: (E) -> R) = when (this) {
 
 fun <T, E : Throwable> Result<T, E>.getOrThrow() = when (this) {
     is Ok -> value
-    is Err -> throw throwable
+    is Err -> throw error
 }
 
 fun <T, E : Throwable> Result<T, E>.toOption() = when (this) {
